@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<latest base="http://example.test/its/update">
+  <databases>
+    <database name="Shared" dbid="{AAAA}" path="shared.pack" />
+    <database name="Only16" dbid="{BBBB}" access="3,8,16,165" path="only16.pack" />
+    <database name="ProfAndMed" dbid="{CCCC}" access="16,65,161" path="profmed.pack" />
+    <database name="Techno" dbid="{DDDD}" access="160" path="techno.pack" />
+  </databases>
+</latest>

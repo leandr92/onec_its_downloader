@@ -1,0 +1,7 @@
+[package]
+name = "iscf_extract"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lzxd = "0.2"

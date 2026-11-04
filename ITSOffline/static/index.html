@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>ITSOffline</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --line: #d2c8b6;
+      --text: #2b261f;
+      --muted: #6e6456;
+      --accent: #8b4513;
+      --hover: #efe6d8;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--text); background: var(--bg);
+    }
+    #app {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      height: 100%;
+    }
+    aside {
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      display: flex; flex-direction: column;
+      min-height: 0;
+    }
+    header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    header h1 {
+      margin: 0; font-size: 18px; font-weight: 650;
+      color: var(--accent);
+    }
+    header p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+    #toc {
+      overflow: auto; padding: 8px 0 24px;
+      flex: 1; min-height: 0;
+    }
+    details.base { margin: 0 8px 6px; }
+    details.base > summary {
+      cursor: pointer; padding: 8px 10px;
+      font-weight: 600; border-radius: 6px;
+      list-style: none;
+    }
+    details.base > summary::-webkit-details-marker { display: none; }
+    details.base > summary:hover { background: var(--hover); }
+    details.book { margin: 2px 0 2px 10px; }
+    details.book > summary {
+      cursor: pointer; padding: 4px 8px;
+      color: var(--muted); font-size: 13px;
+      list-style: none;
+    }
+    details.book > summary:hover { color: var(--text); }
+    .pages { margin: 0; padding: 0 0 4px 12px; list-style: none; }
+    .pages a {
+      display: block; padding: 3px 8px; border-radius: 4px;
+      color: var(--text); text-decoration: none; font-size: 13px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pages a:hover, .pages a.active { background: var(--hover); color: var(--accent); }
+    .empty { padding: 16px; color: var(--muted); font-size: 13px; }
+    main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+    #frame-wrap { flex: 1; min-height: 0; background: #fff; }
+    iframe {
+      width: 100%; height: 100%; border: 0; background: #fff;
+    }
+    #placeholder {
+      padding: 48px 24px; color: var(--muted); text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <aside>
+      <header>
+        <h1>ITSOffline</h1>
+        <p>локальное оглавление</p>
+      </header>
+      <div id="toc"><div class="empty">загрузка…</div></div>
+    </aside>
+    <main>
+      <div id="frame-wrap">
+        <div id="placeholder">Выберите страницу слева</div>
+        <iframe id="view" title="ITS page" hidden></iframe>
+      </div>
+    </main>
+  </div>
+  <script>
+    const tocEl = document.getElementById("toc");
+    const frame = document.getElementById("view");
+    const placeholder = document.getElementById("placeholder");
+
+    function openPage(base, relPath, link) {
+      document.querySelectorAll(".pages a.active").forEach(a => a.classList.remove("active"));
+      if (link) link.classList.add("active");
+      placeholder.hidden = true;
+      frame.hidden = false;
+      frame.src = "/library/" + encodeURI(base + "/" + relPath).replace(/#/g, "%23");
+    }
+
+    function groupPages(pages) {
+      const books = new Map();
+      for (const page of pages) {
+        const book = page.book || "(корень)";
+        if (!books.has(book)) books.set(book, []);
+        books.get(book).push(page);
+      }
+      return books;
+    }
+
+    function render(bases) {
+      tocEl.innerHTML = "";
+      if (!bases.length) {
+        tocEl.innerHTML = '<div class="empty">Нет баз в data/library. Сначала выполните download.</div>';
+        return;
+      }
+      for (const base of bases) {
+        const det = document.createElement("details");
+        det.className = "base";
+        det.open = bases.length === 1;
+        const sum = document.createElement("summary");
+        sum.textContent = base.name + (base.pages.length ? "" : " (без страниц)");
+        det.appendChild(sum);
+        if (!base.pages.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent = "нет toc.json / .htm";
+          det.appendChild(empty);
+          tocEl.appendChild(det);
+          continue;
+        }
+        const books = groupPages(base.pages);
+        for (const [book, pages] of books) {
+          const bdet = document.createElement("details");
+          bdet.className = "book";
+          bdet.open = books.size <= 3;
+          const bsum = document.createElement("summary");
+          bsum.textContent = book;
+          bdet.appendChild(bsum);
+          const ul = document.createElement("ul");
+          ul.className = "pages";
+          for (const page of pages) {
+            const li = document.createElement("li");
+            const a = document.createElement("a");
+            a.href = "#";
+            a.textContent = page.title || page.path;
+            a.title = page.path;
+            a.addEventListener("click", (e) => {
+              e.preventDefault();
+              openPage(base.name, page.path, a);
+            });
+            li.appendChild(a);
+            ul.appendChild(li);
+          }
+          bdet.appendChild(ul);
+          det.appendChild(bdet);
+        }
+        tocEl.appendChild(det);
+      }
+    }
+
+    fetch("/api/toc")
+      .then(r => r.json())
+      .then(render)
+      .catch(err => {
+        tocEl.innerHTML = '<div class="empty">ошибка загрузки оглавления</div>';
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
