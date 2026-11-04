@@ -21,7 +21,7 @@ class PackTests(unittest.TestCase):
         raw = bytearray(raw)
         # second record md5 starts at 308 + 284 + 12
         start = 308 + 284 + 12
-        raw[start : start + 16] = b"\x00" * 16
+        raw[start : start + 16] = b"\x11" * 16
         raw = bytes(raw)
 
         catalog = parse_pack_catalog(raw)
@@ -49,9 +49,21 @@ class PackTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp) / "out"
             written, reasons = unpack_pack(self._write(tmp, "bad.pack", raw), dest)
-            self.assertEqual(written, 0)
+            self.assertEqual(written, 1)
             self.assertTrue(any("MD5 mismatch" in r for r in reasons))
-            self.assertFalse(dest.exists() and any(dest.iterdir()))
+            self.assertEqual((dest / "ok.txt").read_bytes(), good)
+            self.assertFalse((dest / "bad.txt").exists())
+
+    def test_zero_md5_keeps_file(self) -> None:
+        raw = bytearray(build_pack([("refer.txt", b""), ("ok.txt", b"data")]))
+        raw[308 + 12 : 308 + 28] = b"\x00" * 16
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "out"
+            written, reasons = unpack_pack(self._write(tmp, "zero.pack", bytes(raw)), dest)
+            self.assertEqual(written, 2)
+            self.assertEqual(reasons, [])
+            self.assertEqual((dest / "refer.txt").read_bytes(), b"")
+            self.assertEqual((dest / "ok.txt").read_bytes(), b"data")
 
     @staticmethod
     def _write(tmp: str, name: str, data: bytes) -> Path:

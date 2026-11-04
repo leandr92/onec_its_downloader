@@ -102,7 +102,10 @@
       if (link) link.classList.add("active");
       placeholder.hidden = true;
       frame.hidden = false;
-      frame.src = "/library/" + encodeURI(base + "/" + relPath).replace(/#/g, "%23");
+      const hashAt = relPath.indexOf("#");
+      const file = hashAt >= 0 ? relPath.slice(0, hashAt) : relPath;
+      const fragment = hashAt >= 0 ? relPath.slice(hashAt) : "";
+      frame.src = "/library/" + encodeURI(base + "/" + file) + fragment;
     }
 
     function groupPages(pages) {

@@ -167,8 +167,9 @@ def download_databases(
             prog.update(_overall, f"распаковка {i}/{n} {path}")
 
         written, reasons = pack.unpack_pack(pack_path, tmp_root, on_progress=on_un)
-        if any("MD5 mismatch" in r or "truncated body" in r for r in reasons):
-            print(f"\nпропуск пакета {pack_name}: {reasons[0]}", file=sys.stderr)
+        if any("truncated body" in r for r in reasons) or written == 0:
+            print(f"\nпропуск пакета {pack_name}: {reasons[0] if reasons else 'пусто'}", file=sys.stderr)
+            shutil.rmtree(tmp_root, ignore_errors=True)
             continue
         for r in reasons:
             print(f"\nпредупреждение {pack_name}: {r}", file=sys.stderr)

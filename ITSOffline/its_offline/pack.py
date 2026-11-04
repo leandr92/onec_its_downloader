@@ -12,6 +12,8 @@ from .paths import safe_join
 HEADER_SIZE = 308
 RECORD_SIZE = 284
 COUNT_OFFSET = 0x130
+# Catalog stores 16 zero bytes when the pack has no checksum for that file.
+MISSING_MD5 = b"\x00" * 16
 
 
 @dataclass
@@ -94,8 +96,9 @@ def unpack_pack(
 ) -> tuple[int, list[str]]:
     """Unpack *pack_path* into *dest_dir*.
 
-    Returns (written_count, skip_reasons). MD5 is checked for every entry before
-    any write; on mismatch the whole pack is skipped. Paths that escape
+    Returns (written_count, skip_reasons). An all-zero catalog MD5 means the
+    pack stored no checksum and the body is kept. A real MD5 mismatch skips
+    only that file. A truncated body skips the whole pack. Paths that escape
     *dest_dir* are refused individually.
     """
     pack_path = Path(pack_path)
@@ -113,8 +116,9 @@ def unpack_pack(
         if end > len(data):
             return 0, [f"truncated body for {entry.path}"]
         body = data[entry.body_offset : end]
-        if hashlib.md5(body).digest() != entry.md5:
-            return 0, [f"MD5 mismatch for {entry.path}"]
+        if entry.md5 != MISSING_MD5 and hashlib.md5(body).digest() != entry.md5:
+            reasons.append(f"MD5 mismatch for {entry.path}")
+            continue
         bodies.append((entry, body))
 
     dest_dir.mkdir(parents=True, exist_ok=True)
