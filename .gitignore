@@ -1,6 +1,5 @@
 .DS_Store
 __pycache__/
 *.py[cod]
-ITSOffline/data/packs/
-ITSOffline/data/_tmp_unpack/
-ITSOffline/data/library/Staff1CBud/Storage/Data.cab
+ITSOffline/data/
+ITSOffline/native/iscf_extract/target/
